@@ -561,6 +561,28 @@ public final class RIL extends BaseCommands implements CommandsInterface {
                 mSocket = s;
                 Rlog.i(RILJ_LOG_TAG, "Connected to '" + SOCKET_NAME_RIL + "' socket");
 
+                /* add a temp patch until needsOldRilFeature (or something similar) is merged */
+                boolean qcomdsds;
+                String[] features = SystemProperties.get("ro.telephony.ril.v3", "").split(",");
+                for (String found: features) {
+                    if (found.equals("qcomdsds"))
+                        qcomdsds = true;
+                }
+
+                /* Compatibility with qcom's DSDS (Dual SIM) stack */
+                if (qcomdsds) {
+                    String str = "SUB1";
+                    byte[] data = str.getBytes();
+                    try {
+                        mSocket.getOutputStream().write(data);
+                        Rlog.i(LOG_TAG, "Data sent!!");
+                    } catch (IOException ex) {
+                            Rlog.e(LOG_TAG, "IOException", ex);
+                    } catch (RuntimeException exc) {
+                        Rlog.e(LOG_TAG, "Uncaught exception ", exc);
+                    }
+                }
+
                 int length = 0;
                 try {
                     InputStream is = mSocket.getInputStream();
