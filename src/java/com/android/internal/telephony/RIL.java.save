@@ -210,9 +210,8 @@ class RILRequest {
  *
  * {@hide}
  */
-public class RIL extends BaseCommands implements CommandsInterface {
+public final class RIL extends BaseCommands implements CommandsInterface {
     static final String RILJ_LOG_TAG = "RILJ";
-    static final String LOG_TAG = RILJ_LOG_TAG;
     static final boolean RILJ_LOGD = true;
     static final boolean RILJ_LOGV = false; // STOPSHIP if true
 
@@ -248,12 +247,6 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     // When we are testing emergency calls
     AtomicBoolean mTestingEmergencyCall = new AtomicBoolean(false);
-
-
-    // Number of per-network elements expected in QUERY_AVAILABLE_NETWORKS's response.
-    // 4 elements is default, but many RILs actually return 5, making it impossible to
-    // divide the response array without prior knowledge of the number of elements.
-    protected int mQANElements = 4;
 
     //***** Events
 
@@ -365,7 +358,8 @@ public class RIL extends BaseCommands implements CommandsInterface {
                         s.getOutputStream().write(dataLength);
                         s.getOutputStream().write(data);
                     } catch (IOException ex) {
-                        Rlog.e(RILJ_LOG_TAG, "IOException", ex);
+                        Rlog.e(RILJ_
+LOG_TAG, "IOException", ex);
                         req = findAndRemoveRequestFromList(rr.mSerial);
                         // make sure this request has not already been handled,
                         // eg, if RILReceiver cleared the list.
@@ -568,17 +562,25 @@ public class RIL extends BaseCommands implements CommandsInterface {
                 mSocket = s;
                 Rlog.i(RILJ_LOG_TAG, "Connected to '" + SOCKET_NAME_RIL + "' socket");
 
+                /* add a temp patch until needsOldRilFeature (or something similar) is merged */
+                boolean qcomdsds;
+                String[] features = SystemProperties.get("ro.telephony.ril.v3", "").split(",");
+                for (String found: features) {
+                    if (found.equals("qcomdsds"))
+                        qcomdsds = true;
+                }
+
                 /* Compatibility with qcom's DSDS (Dual SIM) stack */
-                if (needsOldRilFeature("qcomdsds")) {
+                if (qcomdsds) {
                     String str = "SUB1";
                     byte[] data = str.getBytes();
                     try {
                         mSocket.getOutputStream().write(data);
-                        Rlog.i(RILJ_LOG_TAG, "Data sent!!");
+                        Rlog.i(LOG_TAG, "Data sent!!");
                     } catch (IOException ex) {
-                            Rlog.e(RILJ_LOG_TAG, "IOException", ex);
+                            Rlog.e(LOG_TAG, "IOException", ex);
                     } catch (RuntimeException exc) {
-                        Rlog.e(RILJ_LOG_TAG, "Uncaught exception ", exc);
+                        Rlog.e(LOG_TAG, "Uncaught exception ", exc);
                     }
                 }
 
@@ -1970,7 +1972,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         if (RILJ_LOGD) riljLog("setCurrentPreferredNetworkType: " + mSetPreferredNetworkType);
         setPreferredNetworkType(mSetPreferredNetworkType, null);
     }
-    protected int mSetPreferredNetworkType;
+    private int mSetPreferredNetworkType;
 
     /**
      * {@inheritDoc}
@@ -2145,7 +2147,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
 
     //***** Private Methods
 
-    protected void sendScreenState(boolean on) {
+    private void sendScreenState(boolean on) {
         RILRequest rr = RILRequest.obtain(RIL_REQUEST_SCREEN_STATE, null);
         rr.mParcel.writeInt(1);
         rr.mParcel.writeInt(on ? 1 : 0);
@@ -2166,7 +2168,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         sendScreenState(pm.isScreenOn());
    }
 
-    protected RadioState getRadioStateFromInt(int stateInt) {
+    private RadioState getRadioStateFromInt(int stateInt) {
         RadioState state;
 
         /* RIL_RadioState ril.h */
@@ -2182,7 +2184,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return state;
     }
 
-    protected void switchToRadioState(RadioState newState) {
+    private void switchToRadioState(RadioState newState) {
         setRadioState(newState);
     }
 
@@ -2219,7 +2221,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected void
+    private void
     send(RILRequest rr) {
         Message msg;
 
@@ -2236,7 +2238,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         msg.sendToTarget();
     }
 
-    protected void
+    private void
     processResponse (Parcel p) {
         int type;
 
@@ -2256,7 +2258,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
      * @param error is the RIL_Errno sent back
      * @param loggable true means to print all requests in mRequestList
      */
-    protected void clearRequestList(int error, boolean loggable) {
+    private void clearRequestList(int error, boolean loggable) {
         RILRequest rr;
         synchronized (mRequestList) {
             int count = mRequestList.size();
@@ -2280,7 +2282,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected RILRequest findAndRemoveRequestFromList(int serial) {
+    private RILRequest findAndRemoveRequestFromList(int serial) {
         long removalTime = System.currentTimeMillis();
         long timeDiff = 0;
         synchronized (mRequestList) {
@@ -2307,7 +2309,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return null;
     }
 
-    protected void
+    private void
     processSolicited (Parcel p) {
         int serial, error;
         boolean found = false;
@@ -2522,7 +2524,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         rr.release();
     }
 
-    protected String
+    private String
     retToString(int req, Object ret) {
         if (ret == null) return "";
         switch (req) {
@@ -2586,7 +2588,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return s;
     }
 
-    protected void
+    private void
     processUnsolicited (Parcel p) {
         int response;
         Object ret;
@@ -3011,7 +3013,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
      *
      * @param rilVer is the version of the ril or -1 if disconnected.
      */
-    protected void notifyRegistrantsRilConnectionChanged(int rilVer) {
+    private void notifyRegistrantsRilConnectionChanged(int rilVer) {
         mRilVersion = rilVer;
         if (mRilConnectedRegistrants != null) {
             mRilConnectedRegistrants.notifyRegistrants(
@@ -3019,7 +3021,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected Object
+    private Object
     responseInts(Parcel p) {
         int numInts;
         int response[];
@@ -3036,12 +3038,12 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
 
-    protected Object
+    private Object
     responseVoid(Parcel p) {
         return null;
     }
 
-    protected Object
+    private Object
     responseCallForward(Parcel p) {
         int numInfos;
         CallForwardInfo infos[];
@@ -3064,7 +3066,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return infos;
     }
 
-    protected Object
+    private Object
     responseSuppServiceNotification(Parcel p) {
         SuppServiceNotification notification = new SuppServiceNotification();
 
@@ -3077,7 +3079,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return notification;
     }
 
-    protected Object
+    private Object
     responseCdmaSms(Parcel p) {
         SmsMessage sms;
         sms = SmsMessage.newFromParcel(p);
@@ -3085,7 +3087,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return sms;
     }
 
-    protected Object
+    private Object
     responseString(Parcel p) {
         String response;
 
@@ -3094,7 +3096,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseStrings(Parcel p) {
         int num;
         String response[];
@@ -3104,7 +3106,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseRaw(Parcel p) {
         int num;
         byte response[];
@@ -3114,7 +3116,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseSMS(Parcel p) {
         int messageRef, errorCode;
         String ackPDU;
@@ -3129,7 +3131,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
     }
 
 
-    protected Object
+    private Object
     responseICC_IO(Parcel p) {
         int sw1, sw2;
         byte data[] = null;
@@ -3148,18 +3150,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return new IccIoResult(sw1, sw2, s);
     }
 
-    /* use the cm implementation for getting ril features */
-    @Override
-    public boolean needsOldRilFeature(String feature) {
-        String[] features = SystemProperties.get("ro.telephony.ril.v3", "").split(",");
-        for (String found: features) {
-            if (found.equals(feature))
-                return true;
-        }
-        return false;
-    }
-
-    protected Object
+    private Object
     responseIccCardStatus(Parcel p) {
         IccCardApplicationStatus appStatus;
 
@@ -3191,7 +3182,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return cardStatus;
     }
 
-    protected Object
+    private Object
     responseSimRefresh(Parcel p) {
         IccRefreshResponse response = new IccRefreshResponse();
 
@@ -3201,7 +3192,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseCallList(Parcel p) {
         int num;
         int voiceSettings;
@@ -3278,8 +3269,9 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected DataCallResponse getDataCallResponse(Parcel p, int version) {
+    private DataCallResponse getDataCallResponse(Parcel p, int version) {
         DataCallResponse dataCall = new DataCallResponse();
+
         dataCall.version = version;
         if (version < 5) {
             dataCall.cid = p.readInt();
@@ -3316,7 +3308,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return dataCall;
     }
 
-    protected Object
+    private Object
     responseDataCallList(Parcel p) {
         ArrayList<DataCallResponse> response;
 
@@ -3332,7 +3324,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseSetupDataCall(Parcel p) {
         int ver = p.readInt();
         int num = p.readInt();
@@ -3379,20 +3371,20 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return dataCall;
     }
 
-    protected Object
+    private Object
     responseOperatorInfos(Parcel p) {
         String strings[] = (String [])responseStrings(p);
         ArrayList<OperatorInfo> ret;
 
-        if (strings.length % mQANElements != 0) {
+        if (strings.length % 4 != 0) {
             throw new RuntimeException(
                 "RIL_REQUEST_QUERY_AVAILABLE_NETWORKS: invalid response. Got "
-                + strings.length + " strings, expected multible of " + mQANElements);
+                + strings.length + " strings, expected multible of 4");
         }
 
-        ret = new ArrayList<OperatorInfo>(strings.length / mQANElements);
+        ret = new ArrayList<OperatorInfo>(strings.length / 4);
 
-        for (int i = 0 ; i < strings.length ; i += mQANElements) {
+        for (int i = 0 ; i < strings.length ; i += 4) {
             ret.add (
                 new OperatorInfo(
                     strings[i+0],
@@ -3404,7 +3396,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return ret;
     }
 
-    protected Object
+    private Object
     responseCellList(Parcel p) {
        int num, rssi;
        String location;
@@ -3446,7 +3438,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
        return response;
     }
 
-    protected Object responseGetPreferredNetworkType(Parcel p) {
+    private Object responseGetPreferredNetworkType(Parcel p) {
        int [] response = (int[]) responseInts(p);
 
        if (response.length >= 1) {
@@ -3458,7 +3450,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
        return response;
     }
 
-    protected Object responseGmsBroadcastConfig(Parcel p) {
+    private Object responseGmsBroadcastConfig(Parcel p) {
         int num;
         ArrayList<SmsBroadcastConfigInfo> response;
         SmsBroadcastConfigInfo info;
@@ -3480,7 +3472,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseCdmaBroadcastConfig(Parcel p) {
         int numServiceCategories;
         int response[];
@@ -3519,7 +3511,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseSignalStrength(Parcel p) {
         // Assume this is gsm, but doesn't matter as ServiceStateTracker
         // sets the proper value.
@@ -3527,7 +3519,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return signalStrength;
     }
 
-    protected ArrayList<CdmaInformationRecords>
+    private ArrayList<CdmaInformationRecords>
     responseCdmaInformationRecord(Parcel p) {
         int numberOfInfoRecs;
         ArrayList<CdmaInformationRecords> response;
@@ -3547,7 +3539,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected Object
+    private Object
     responseCdmaCallWaiting(Parcel p) {
         CdmaCallWaitingNotification notification = new CdmaCallWaitingNotification();
 
@@ -3566,7 +3558,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return notification;
     }
 
-    protected Object
+    private Object
     responseCallRing(Parcel p){
         char response[] = new char[4];
 
@@ -3578,7 +3570,7 @@ public class RIL extends BaseCommands implements CommandsInterface {
         return response;
     }
 
-    protected void
+    private void
     notifyRegistrantsCdmaInfoRec(CdmaInformationRecords infoRec) {
         int response = RIL_UNSOL_CDMA_INFO_REC;
         if (infoRec.record instanceof CdmaInformationRecords.CdmaDisplayInfoRec) {
@@ -3817,27 +3809,27 @@ public class RIL extends BaseCommands implements CommandsInterface {
         }
     }
 
-    protected void riljLog(String msg) {
+    private void riljLog(String msg) {
         Rlog.d(RILJ_LOG_TAG, msg);
     }
 
-    protected void riljLogv(String msg) {
+    private void riljLogv(String msg) {
         Rlog.v(RILJ_LOG_TAG, msg);
     }
 
-    protected void unsljLog(int response) {
+    private void unsljLog(int response) {
         riljLog("[UNSL]< " + responseToString(response));
     }
 
-    protected void unsljLogMore(int response, String more) {
+    private void unsljLogMore(int response, String more) {
         riljLog("[UNSL]< " + responseToString(response) + " " + more);
     }
 
-    protected void unsljLogRet(int response, Object ret) {
+    private void unsljLogRet(int response, Object ret) {
         riljLog("[UNSL]< " + responseToString(response) + " " + retToString(response, ret));
     }
 
-    protected void unsljLogvRet(int response, Object ret) {
+    private void unsljLogvRet(int response, Object ret) {
         riljLogv("[UNSL]< " + responseToString(response) + " " + retToString(response, ret));
     }
 
